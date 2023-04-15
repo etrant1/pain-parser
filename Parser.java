@@ -23,18 +23,12 @@ public class Parser {
     // <STMT> --> <IF_STMT> | <BLOCK> | <ASSIGN> | <DECLARE> |<WHILE_LOOP>
     private void stmt(){
         switch (currentToken.getType()){
-            case IF:
-                if_stmt();
-            case WHILE:
-                while_loop();
-            case LEFT_BRACE:
-                block();
-            case DATATYPE:
-                declare();
-            case IDENTIFIER:
-                assign();
-            default:
-                error();
+            case IF -> if_stmt();
+            case WHILE -> while_loop();
+            case LEFT_BRACE -> block();
+            case DATATYPE -> declare();
+            case IDENTIFIER -> assign();
+            default -> error();
         }
     }
 
@@ -42,9 +36,8 @@ public class Parser {
     private void stmt_list(){
         stmt();
         if(isDifferentType(currentToken, SEMICOLON)) error();
-        switch (currentToken.getType()){
-            case IF, WHILE, LEFT_BRACE, DATATYPE, IDENTIFIER:
-                stmt_list();
+        switch (currentToken.getType()) {
+            case IF, WHILE, LEFT_BRACE, DATATYPE, IDENTIFIER -> stmt_list();
         }
     }
 
@@ -114,7 +107,9 @@ public class Parser {
     // <FACT> --> ID | INT_LIT | FLOAT_LIT | `(` <EXPR> `)`
     private void fact(){
         switch (currentToken.getType()){
-            case IDENTIFIER, FLOAT_LIT, INT_LIT: break;
+            case IDENTIFIER, FLOAT_LIT, INT_LIT:
+                currentToken = tokens.get(++pos);
+                break;
             case LEFT_PAREN:
                 expr();
                 if(isDifferentType(currentToken, RIGHT_PAREN)) error();
@@ -155,14 +150,11 @@ public class Parser {
      */
     private boolean isDifferentType(Token token, TokenType desired){
         if(token.getType() != desired) return true;
-        else pos++; return false;
+        else currentToken = tokens.get(++pos); return false;
     }
     private boolean isSameType(Token token, TokenType desired){
-        if(token.getType() == desired) {
-            pos++;
-            return true;
-        }
-        return false;
+        if(token.getType() == desired) { currentToken = tokens.get(++pos); return true; }
+        else return false;
     }
     private void error(){
         System.out.println("Syntax error");

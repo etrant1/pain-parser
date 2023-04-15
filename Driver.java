@@ -9,15 +9,14 @@ public class Driver {
 
         System.out.print("Enter terminals to be analyzed: ");
         String terminals = sc.nextLine();
-        sc.close();
+
 
         Lexer lexer = new Lexer(terminals);
         lexer.lex();
 
         System.out.println("Tokens: " + lexer.getTokens());
 
-        Parser parser = new Parser(lexer.getTokens());
-        if(parser.parse()) System.out.println("Terminals passed");
-
+        Parser parser = new Parser(lexer.getTokens());if(parser.parse()) System.out.println("Terminals passed");
+        sc.close();
     }
 }
