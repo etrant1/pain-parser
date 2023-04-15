@@ -1,13 +1,13 @@
 package lexer;
 
 public class Token {
-    final TokenTypes type;
+    final TokenType type;
 
-    Token(TokenTypes type){
+    public Token(TokenType type){
         this.type = type;
     }
 
-    public TokenTypes getType() { return type; }
+    public TokenType getType() { return type; }
     public String toString(){
         return type + "";
     }

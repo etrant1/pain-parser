@@ -1,158 +1,171 @@
 import lexer.Token;
-import lexer.TokenTypes;
+import lexer.TokenType;
 
 import java.util.List;
 
-import static lexer.TokenTypes.*;
+import static lexer.TokenType.*;
 
 public class Parser {
-    List<Token> tokens;
-    int current = -1;
-    TokenTypes debugToken;
-    Parser(List<Token> tokens){
+    private final List<Token> tokens;
+    private Token currentToken;
+    private int pos = 0;
+
+    public Parser(List<Token> tokens){
         this.tokens = tokens;
+        this.currentToken = tokens.get(pos);
     }
 
     public boolean parse(){
-        stmt_list();
-        if (current < tokens.size()-2) error();
+        stmt();
         return true;
     }
 
-    void stmt(){
-        switch (lookAhead()) {
-            case WHILE -> while_stmt();
-            case IF -> if_stmt();
-            case LEFT_BRACE -> block();
-            case IDENTIFIER, FLOAT, INTEGER -> expr();
-            default -> error();
-        }
-    }
-    void stmt_list(){
-       stmt();
-       if (lookAhead() != SEMICOLON) error();
-       current++;
-    }
-    void if_stmt(){
-        current++;
-        if (lookAhead() != LEFT_PAREN) error();
-        current++;
-        bool_expr();
-        if (lookAhead() != RIGHT_PAREN) error();
-        current++;
-        if (lookAhead() == LEFT_BRACE) {
-            block();
-        }
-        else {
-            stmt();
-            if (lookAhead() != SEMICOLON) error();
-        }
-        if (lookAhead() == ELSE) {
-            current++;
-            if (lookAhead() == LEFT_BRACE) {
+    // <STMT> --> <IF_STMT> | <BLOCK> | <ASSIGN> | <DECLARE> |<WHILE_LOOP>
+    private void stmt(){
+        switch (currentToken.getType()){
+            case IF:
+                if_stmt();
+            case WHILE:
+                while_loop();
+            case LEFT_BRACE:
                 block();
-            }
-            else {
-                stmt();
-                if (lookAhead() != SEMICOLON) error();
-                current++;
-            }
-        }
-    }
-    void while_stmt(){
-        current++;
-        if (lookAhead() != LEFT_PAREN) error();
-        current++;
-        bool_expr();
-        if (lookAhead() != RIGHT_PAREN) error();
-        current++;
-        if (lookAhead() == LEFT_BRACE) {
-            block();
-        }
-        else {
-            stmt();
-            if (lookAhead() != SEMICOLON) error();
-            current++;
-        }
-    }
-    void block(){
-        current++;
-        stmt_list();
-        if (lookAhead() != RIGHT_BRACE) error();
-        current++;
-    }
-    void expr(){
-        term();
-        TokenTypes next = lookAhead();
-        if (next == PLUS || next == MINUS) {
-            current++;
-            term();
-        }
-    }
-    void term(){
-        fact();
-        switch (lookAhead()) {
-            case MULTIPLY, DIVIDE, MODULO -> {
-                current++;
-                fact();
-            }
-        }
-    }
-    void fact(){
-        switch (lookAhead()){
+            case DATATYPE:
+                declare();
             case IDENTIFIER:
-            case FLOAT:
-            case INTEGER:
-                current++;
-                break;
-            case LEFT_PAREN:
-                current++;
-                expr();
-                if (lookAhead() != RIGHT_PAREN) error();
-                current++;
+                assign();
             default:
                 error();
         }
     }
-    void bool_expr(){
-        b_term();
-        switch (lookAhead()) {
-            case GREATER, LESS, GREATER_EQUALS, LESS_EQUALS -> {
-                current++;
-                b_term();
-            }
+
+    // <STMT_LIST> --> { <STMT> `;` }
+    private void stmt_list(){
+        stmt();
+        if(isDifferentType(currentToken, SEMICOLON)) error();
+        switch (currentToken.getType()){
+            case IF, WHILE, LEFT_BRACE, DATATYPE, IDENTIFIER:
+                stmt_list();
         }
     }
-    void b_term(){
-        b_and();
-        TokenTypes next = lookAhead();
-        if (next == EQUALS_EQUALS || next == NOT_EQUALS){
-            current++;
-            b_and();
+
+    // <IF_STMT> --> `if` `(` <BOOL_EXPR> `)` <BLOCK>  [ `else`  <BLOCK> ]
+    private void if_stmt(){
+        if(isDifferentType(currentToken, IF)) error();
+        if(isDifferentType(currentToken, LEFT_PAREN)) error();
+
+        bool_expr();
+
+        if(isDifferentType(currentToken, RIGHT_PAREN)) error();
+
+        block();
+
+        if(isSameType(currentToken, ELSE)){
+            block();
         }
     }
-    void b_and(){
-        b_or();
-        if (lookAhead() == AND) {
-            current++;
-            b_or();
+
+    // <WHILE_LOOP> --> `while` `(` <BOOL_EXPR> `)` <BLOCK>
+    private void while_loop(){
+        if(isDifferentType(currentToken, WHILE)) error();
+        if(isDifferentType(currentToken, LEFT_PAREN)) error();
+
+        bool_expr();
+
+        if(isDifferentType(currentToken, RIGHT_PAREN)) error();
+
+        block();
+    }
+
+    private void block(){
+        if(isDifferentType(currentToken, LEFT_BRACE)) error();
+        stmt_list();
+        if(isDifferentType(currentToken, RIGHT_BRACE)) error();
+    }
+
+    // <DECLARE> --> `DataType` ID {`,` ID }
+    private void declare(){
+        if(isDifferentType(currentToken, DATATYPE)) error();
+        if(isDifferentType(currentToken, IDENTIFIER)) error();
+        if(isSameType(currentToken, COMMA)){
+            if(isDifferentType(currentToken, IDENTIFIER)) error();
         }
     }
-    void b_or(){
+
+    // <ASSIGN> --> ID `=` <EXPR>
+    private void assign(){
+        if(isDifferentType(currentToken, IDENTIFIER)) error();
+        if(isDifferentType(currentToken, EQUALS)) error();
         expr();
-        if (lookAhead() == AND) {
-            current++;
-            expr();
+    }
+
+    // <EXPR> --> <TERM> {(`+`|`-`) <TERM>}
+    private void expr(){
+        term();
+        if(isSameType(currentToken, PLUS) || isSameType(currentToken, MINUS)) term();
+    }
+
+    // <TERM> --> <FACT> {(`*`|`/`|`%`) <FACT>}
+    private void term(){
+        fact();
+        if(isSameType(currentToken, STAR) || isSameType(currentToken, DIVIDE) ||
+                isSameType(currentToken, MODULO)) fact();
+    }
+
+    // <FACT> --> ID | INT_LIT | FLOAT_LIT | `(` <EXPR> `)`
+    private void fact(){
+        switch (currentToken.getType()){
+            case IDENTIFIER, FLOAT_LIT, INT_LIT: break;
+            case LEFT_PAREN:
+                expr();
+                if(isDifferentType(currentToken, RIGHT_PAREN)) error();
+            default:
+                error();
         }
     }
 
-    void error(){
-        System.out.println("Syntax error");
-        System.exit(64);
+    // <BOOL_EXPR> --> <BTERM> {(`>`|`<`|`>=`|`<=`) <BTERM>}
+    private void bool_expr(){
+        b_term();
+        if(isSameType(currentToken, GREATER) || isSameType(currentToken, LESS) ||
+                isSameType(currentToken, GREATER_EQUALS) || isSameType(currentToken, LESS_EQUALS)) b_term();
     }
 
-    TokenTypes lookAhead() {
-        debugToken = tokens.get(current+1).getType();
-        return tokens.get(current+1).getType();
+    // <BTERM> --> <BAND> {(`==`|`!=`) <BAND>}
+    private void b_term(){
+        b_and();
+        if(isSameType(currentToken, AND) || isSameType(currentToken, NOT_EQUALS)) b_and();
+    }
+
+    // <BAND> --> <BOR> {`&&` <BOR>}
+    private void b_and(){
+        b_or();
+        if(isSameType(currentToken, AND)) b_or();
+    }
+
+    // <BOR> --> <EXPR> {`&&` <EXPR>}
+    private void b_or(){
+        expr();
+        if(isSameType(currentToken, OR)) expr();
+    }
+
+    /*
+    ------------------------------------------------------------
+                        Helper functions
+    ------------------------------------------------------------
+     */
+    private boolean isDifferentType(Token token, TokenType desired){
+        if(token.getType() != desired) return true;
+        else pos++; return false;
+    }
+    private boolean isSameType(Token token, TokenType desired){
+        if(token.getType() == desired) {
+            pos++;
+            return true;
+        }
+        return false;
+    }
+    private void error(){
+        System.out.println("Syntax error");
+        System.exit(1);
     }
 }

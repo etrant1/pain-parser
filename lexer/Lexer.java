@@ -2,13 +2,14 @@ package lexer;
 
 import java.util.ArrayList;
 import java.util.List;
-import static lexer.TokenTypes.*;
+import static lexer.TokenType.*;
 
 public class Lexer {
     private final String source;
     private final List<Token> tokens = new ArrayList<>();
     private int start = 0;
     private int current = 0;
+    private int line = 1;
 
     public Lexer(String source){
         this.source = source;
@@ -24,7 +25,7 @@ public class Lexer {
         tokens.add(new Token(EOF));
     }
 
-    private void addToken(TokenTypes type) {
+    private void addToken(TokenType type) {
         tokens.add(new Token(type));
     }
 
@@ -42,8 +43,9 @@ public class Lexer {
             case ';': addToken(SEMICOLON); break;
             case '-': addToken(MINUS); break;
             case '+': addToken(PLUS); break;
-            case '*': addToken(MULTIPLY); break;
+            case '*': addToken(STAR); break;
             case '/': addToken(DIVIDE); break;
+            case ',': addToken(COMMA); break;
             case '!':
                 addToken(match('=') ? NOT_EQUALS : NOT);
                 break;
@@ -67,15 +69,18 @@ public class Lexer {
                  }
                 break;
             case '\n':
+                line++;
+                break;
             case ' ':
+            case '\t':
                 break;
             default: {
                 if (isDigit(c)) {
                     number();
                 } else if (isAlpha(c)) {
-                    identifier();
+                    keyword();
                 } else {
-                    System.out.println("Unexpected character.");
+                    System.out.println("Unexpected character on line: " + line);
                 }
             }
         }
@@ -133,19 +138,22 @@ public class Lexer {
             float_lit = true;
             while (isDigit(peek())) advance();
         }
-        if (float_lit) addToken(FLOAT);
-        else addToken(INTEGER);
+        if (float_lit) addToken(FLOAT_LIT);
+        else addToken(INT_LIT);
     }
 
-    private void identifier() {
+    private void keyword(){
         while (isAlphaNumeric(peek())) advance();
-
         String text = source.substring(start, current);
         switch (text) {
-            case "while" -> addToken(WHILE);
-            case "if" -> addToken(IF);
-            case "else" -> addToken(ELSE);
-            default -> addToken(IDENTIFIER);
+            case "while": addToken(WHILE); break;
+            case "if": addToken(IF); break;
+            case "else": addToken(ELSE); break;
+            case "int":
+            case "float":
+            case "var":
+                addToken(DATATYPE); break;
+            default: addToken(IDENTIFIER);
         }
     }
 }
