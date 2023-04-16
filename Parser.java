@@ -82,6 +82,15 @@ public class Parser {
         if(isSameType(currentToken, COMMA)){
             if(isDifferentType(currentToken, IDENTIFIER)) error();
         }
+        /*
+        Although not specified by the assignment, this ensures simultaneous
+        declaration + assignment has expected behavior
+        */
+        if(isSameType(currentToken, EQUALS)){
+            pos -= 2;
+            currentToken = tokens.get(pos);
+            assign();
+        }
     }
 
     // <ASSIGN> --> ID `=` <EXPR>

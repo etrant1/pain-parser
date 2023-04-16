@@ -1,0 +1,10 @@
+if(a<b){
+	var c = a + b;
+} 
+while(c != a){
+	if(doing){
+		b = 0;
+	}else{
+		int d = 0.1;
+	}
+}
